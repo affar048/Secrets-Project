@@ -1,0 +1,110 @@
+/* Background with linear gradient */
+body {
+    background: linear-gradient(to right, #d3cce3, #e9e4f0); /* Soft pastel gradient */
+    font-family: 'Segoe UI', sans-serif;
+    transition: background-color 0.3s ease;
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar custom color */
+.navbar {
+    background-color: #2C3E50 !important; /* Deep blue */
+    transition: all 0.3s ease;
+}
+
+/* Centered content */
+.centered {
+    padding-top: 200px;
+    text-align: center;
+    animation: fadeInUp 1s ease-in-out;
+}
+
+/* Secret text */
+.secret-text {
+    text-align: center;
+    font-size: 2rem;
+    color: #fff;
+    background-color: #000;
+    padding: 1rem;
+    border-radius: 10px;
+    animation: pulse 2s infinite;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    margin: 10px auto;
+    padding: 10px 25px;
+    font-size: 1.1rem;
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+    border-radius: 8px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Card animation (login/register) */
+.card {
+    animation: fadeIn 0.8s ease-in-out;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+}
+
+/* Smooth input transitions */
+input.form-control {
+    transition: all 0.2s ease-in-out;
+}
+
+input.form-control:focus {
+    border-color: #2C3E50;
+    box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.25);
+}
+
+/* Footer fixed to bottom if content is short */
+footer {
+    margin-top: auto;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(0,0,0, 0.4);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(0,0,0, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(0,0,0, 0);
+    }
+}
+
