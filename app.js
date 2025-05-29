@@ -1,146 +1,196 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const encrypt = require('mongoose-encryption');
-const ejs = require("ejs");
-const session = require("express-session");
-const mongoose = require("mongoose");
+const session = require('express-session');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const ejs = require('ejs');
+const path = require('path');
 
 const app = express();
 
-// Middleware
-app.use(session({
-  secret: "yourSecretKey", // Change this in production
-  resave: false,
-  saveUninitialized: false
-}));
-
-app.set("view engine", "ejs");
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-// Mongoose setup
-mongoose.connect("mongodb+srv://affaraffu:EMnXrteiNbuJJNHS@secrets.0h0mz0y.mongodb.net/?retryWrites=true&w=majority&appName=secrets");
-
-const trySchema = new mongoose.Schema({
-  email: String,
-  password: String,
-  secret: String
+// Connect to MongoDB
+mongoose.connect("mongodb+srv://affaraffu:EMnXrteiNbuJJNHS@secrets.0h0mz0y.mongodb.net/?retryWrites=true&w=majority&appName=secrets", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
 });
 
-const secretKey = "thisislittlesecret.";
-trySchema.plugin(encrypt, { secret: secretKey, encryptedFields: ["password"] });
+// User Schema & Model
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  passwordHash: String,
+  secret: String,
+});
 
-const User = mongoose.model("User", trySchema);
+const User = mongoose.model("User", userSchema);
+
+// Middleware
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.set("view engine", "ejs");
+
+// Session setup (adjust cookie secure for production HTTPS)
+app.use(session({
+  secret: "yourSecretKey", // Replace with strong secret in prod
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: false, // Change to true if HTTPS enabled
+    maxAge: 1000 * 60 * 60 * 24 // 1 day
+  }
+}));
 
 // Routes
-app.get("/", function (req, res) {
+
+// Home
+app.get("/", (req, res) => {
   res.render("home");
 });
 
-app.get("/register", function (req, res) {
-  res.render("register");
+// Register
+app.get("/register", (req, res) => {
+  res.render("register", { error: null });
 });
 
-app.post("/register", async function (req, res) {
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
+
+  // Validation
+  if (!name || !email || !password) {
+    return res.render("register", { error: "All fields are required." });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.render("register", { error: "Invalid email format." });
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.render("register", { error: "Password must be at least 6 characters, including uppercase, lowercase, and a number." });
+  }
+
   try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.render("register", { error: "Email already registered." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = new User({
-      email: req.body.username,
-      password: req.body.password
+      name,
+      email,
+      passwordHash: hashedPassword,
     });
 
     await newUser.save();
 
-    // ✅ Set session after registration
-    req.session.user = newUser;
+    res.redirect("/login");
+  } catch (err) {
+    console.error(err);
+    res.render("register", { error: "An error occurred during registration. Please try again." });
+  }
+});
 
+// Login
+app.get("/login", (req, res) => {
+  res.render("login", { error: null });
+});
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.render("login", { error: "Please enter both email and password." });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.render("login", { error: "User not found." });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordMatch) {
+      return res.render("login", { error: "Incorrect password." });
+    }
+
+    // Save user ID in session
+    req.session.userId = user._id;
     res.redirect("/secrets");
   } catch (err) {
-    console.log(err);
-    res.send("Registration failed. Please try again.");
+    console.error(err);
+    res.render("login", { error: "Login failed. Please try again." });
   }
 });
 
-app.get("/login", function (req, res) {
-  res.render("login");
-});
-
-app.post("/login", async function (req, res) {
-  const enteredEmail = req.body.username;
-  const enteredPassword = req.body.password;
-
-  try {
-    const foundUser = await User.findOne({ email: enteredEmail });
-
-    if (foundUser) {
-      if (foundUser.password === enteredPassword) {
-        // ✅ Set session after login
-        req.session.user = foundUser;
-
-        res.redirect("/secrets");
-      } else {
-        res.send("Incorrect password.");
-      }
-    } else {
-      res.send("User not found.");
-    }
-  } catch (err) {
-    console.log(err);
-    res.send("Login failed. Please try again.");
+// Secrets page (protected)
+app.get("/secrets", async (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect("/login");
   }
-});
 
-app.get("/secrets", async function (req, res) {
   try {
-    const usersWithSecrets = await User.find({ secret: { $ne: null } });
-    res.render("secrets", { usersWithSecrets: usersWithSecrets });
+    const usersWithSecrets = await User.find({ secret: { $ne: null } }, 'name secret');
+    const currentUser = await User.findById(req.session.userId, 'name email');
+
+    res.render("secrets", {
+      usersWithSecrets,
+      currentUser
+    });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.send("Error loading secrets.");
   }
 });
 
-app.get("/submit", function (req, res) {
-  if (req.session.user) {
-    res.render("submit");
-  } else {
-    res.redirect("/login");
+// Submit secret (protected)
+app.get("/submit", (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect("/login");
   }
+  res.render("submit");
 });
 
-app.post("/submit", async function (req, res) {
-  if (req.session.user) {
-    const submittedSecret = req.body.secret;
+app.post("/submit", async (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect("/login");
+  }
 
-    try {
-      const foundUser = await User.findById(req.session.user._id);
-      if (foundUser) {
-        foundUser.secret = submittedSecret;
-        await foundUser.save();
-        res.redirect("/secrets");
-      } else {
-        res.redirect("/login");
-      }
-    } catch (err) {
-      console.error(err);
-      res.redirect("/submit");
+  const submittedSecret = req.body.secret;
+
+  try {
+    const user = await User.findById(req.session.userId);
+    if (user) {
+      user.secret = submittedSecret;
+      await user.save();
+      res.redirect("/secrets");
+    } else {
+      res.redirect("/login");
     }
-  } else {
-    res.redirect("/login");
+  } catch (err) {
+    console.error(err);
+    res.redirect("/submit");
   }
 });
 
-app.get("/logout", function (req, res) {
-  req.session.destroy(function (err) {
+// Logout
+app.get("/logout", (req, res) => {
+  req.session.destroy(err => {
     if (err) {
-      console.log(err);
+      console.error(err);
       res.send("Error logging out.");
     } else {
+      res.clearCookie('connect.sid'); // Clear cookie explicitly
       res.redirect("/login");
     }
   });
 });
 
-// Start the server
-app.listen(8000, function () {
-  console.log("Server started on port 8000");
+// Start Server
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
 });

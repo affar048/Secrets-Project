@@ -3,27 +3,74 @@
 <div class="container mt-5">
   <h1>Register</h1>
 
-  <div class="row">
-    <div class="col-sm-8">
-      <div class="card">
-        <div class="card-body">
-          <!-- Makes POST request to /register route -->
-          <form action="/register" method="POST">
-            <div class="form-group">
-              <label for="email">Email</label>
-              <input type="email" id="email" class="form-control" name="username" required>
-            </div>
-            <div class="form-group">
-              <label for="password">Password</label>
-              <input type="password" id="password" class="form-control" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-dark">Register</button>
-          </form>
+  <% if (error) { %>
+    <div class="alert alert-danger"><%= error %></div>
+  <% } %>
+
+  <form action="/register" method="POST" class="mt-4">
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input 
+        type="text" 
+        id="name" 
+        class="form-control" 
+        name="name" 
+        required
+        placeholder="Enter your full name"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input 
+        type="email" 
+        id="email" 
+        class="form-control" 
+        name="email" 
+        required
+        placeholder="Enter your email"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="input-group">
+        <input 
+          type="password" 
+          id="password" 
+          class="form-control" 
+          name="password" 
+          required
+          placeholder="Create a password"
+        >
+        <div class="input-group-append">
+          <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+            Show
+          </button>
         </div>
       </div>
+      <small class="form-text text-muted">
+        Password must be at least 6 characters, include uppercase, lowercase, and a number.
+      </small>
     </div>
-  </div>
+
+    <button type="submit" class="btn btn-dark mt-3">Register</button>
+  </form>
 </div>
 
+<script>
+  const togglePassword = document.getElementById('togglePassword');
+  const password = document.getElementById('password');
+
+  togglePassword.addEventListener('click', () => {
+    if (password.type === 'password') {
+      password.type = 'text';
+      togglePassword.textContent = 'Hide';
+    } else {
+      password.type = 'password';
+      togglePassword.textContent = 'Show';
+    }
+  });
+</script>
 
 <%- include('partials/footer') %>
