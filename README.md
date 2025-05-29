@@ -20,6 +20,9 @@ The Secrets app is a secure platform that allows users to register, login, and a
 - express-session for session management
 - Bootstrap for UI styling
 
+## Deployment
+Check out the live version here: [Secrets](https://secrets-project-psis.onrender.com/)
+
 ## Installation and Setup
 
 1. Clone the repo:
